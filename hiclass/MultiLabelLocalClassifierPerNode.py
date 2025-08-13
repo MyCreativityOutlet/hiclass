@@ -9,6 +9,7 @@ from copy import deepcopy
 import functools
 import networkx as nx
 import numpy as np
+import cupy as cp
 
 from hiclass import BinaryPolicy
 from hiclass.ConstantClassifier import ConstantClassifier
@@ -173,14 +174,6 @@ class MultiLabelLocalClassifierPerNode(BaseEstimator, MultiLabelHierarchicalClas
         check_is_fitted(self)
         _tolerance = (tolerance if tolerance is not None else self.tolerance) or 0.0
 
-        # Input validation
-        if not self.bert:
-            X = sklearn.utils.validation.check_array(
-                X, accept_sparse="csr"
-            )  # TODO: Decide allow_nd True or False
-        else:
-            X = np.array(X)
-
         # Initialize array that holds predictions
         y = [[[]] for _ in range(X.shape[0])]
 
@@ -215,9 +208,9 @@ class MultiLabelLocalClassifierPerNode(BaseEstimator, MultiLabelHierarchicalClas
                     self.logger_.info(f"Predicting for node '{successor_name}'")
                     classifier = self.hierarchy_.nodes[successor]["classifier"]
                     positive_index = np.where(classifier.classes_ == 1)[0]
-                    probabilities[:, row] = classifier.predict_proba(subset_x)[
-                        :, positive_index
-                    ][:, 0]
+                    if isinstance(positive_index, cp.ndarray):
+                        positive_index = cp.asnumpy(positive_index)
+                    probabilities[:, row] = classifier.predict_proba(subset_x)[:, positive_index][:, 0]
 
                 # get indices of probabilities that are within tolerance of max
 
@@ -297,7 +290,7 @@ class MultiLabelLocalClassifierPerNode(BaseEstimator, MultiLabelHierarchicalClas
             classifier = ConstantClassifier()
         if not self.bert:
             try:
-                classifier.fit(X, y, sample_weight)
+                classifier.fit(X, y, sample_weight=sample_weight)
             except TypeError:
                 classifier.fit(X, y)
         else:

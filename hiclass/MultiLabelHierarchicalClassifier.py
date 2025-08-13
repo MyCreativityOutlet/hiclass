@@ -2,6 +2,7 @@
 
 import abc
 import logging
+import math
 
 import networkx as nx
 import numpy as np
@@ -406,7 +407,7 @@ class MultiLabelHierarchicalClassifier(abc.ABC):
                 results = [_parallel_fit.remote(classifier, node) for node in nodes]
                 classifiers = ray.get(results)
             else:
-                classifiers = Parallel(n_jobs=self.n_jobs)(
+                classifiers = Parallel(n_jobs=self.n_jobs, batch_size=math.ceil(len(nodes) / self.n_jobs))(
                     delayed(self._fit_classifier)(self, node) for node in nodes
                 )
 
