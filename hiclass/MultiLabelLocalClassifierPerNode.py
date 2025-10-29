@@ -54,7 +54,6 @@ class MultiLabelLocalClassifierPerNode(BaseEstimator, MultiLabelHierarchicalClas
         local_classifier: BaseEstimator = None,
         binary_policy: str = "siblings",
         tolerance: float = None,
-        threshold: float = None,
         verbose: int = 0,
         edge_list: str = None,
         replace_classifiers: bool = True,
@@ -109,7 +108,6 @@ class MultiLabelLocalClassifierPerNode(BaseEstimator, MultiLabelHierarchicalClas
         )
         self.binary_policy = binary_policy
         self.tolerance = tolerance
-        self.threshold = threshold
 
     def fit(self, X, y, sample_weight=None):
         """
@@ -150,7 +148,7 @@ class MultiLabelLocalClassifierPerNode(BaseEstimator, MultiLabelHierarchicalClas
         # Return the classifier
         return self
 
-    def predict(self, X, tolerance: float = None, threshold: float = None) -> np.ndarray:
+    def predict(self, X, tolerance: float = None) -> np.ndarray:
         r"""
         Predict classes for the given data.
 
@@ -175,17 +173,7 @@ class MultiLabelLocalClassifierPerNode(BaseEstimator, MultiLabelHierarchicalClas
         # Check if fit has been called
         check_is_fitted(self)
         _tolerance = None
-        _threshold = None
-
-        if tolerance:
-            _tolerance = tolerance if tolerance is not None else self.tolerance
-        elif threshold:
-            _threshold = threshold if threshold is not None else self.threshold
-        else:
-            _threshold = 0.5
-
-        if _tolerance and _threshold:
-            self.logger_.warning("Both tolerance and threshold defined, threshold will be used over tolerance")
+        _tolerance = tolerance if tolerance is not None else self.tolerance
 
         # Initialize array that holds predictions
         y = [[[]] for _ in range(X.shape[0])]
@@ -226,13 +214,10 @@ class MultiLabelLocalClassifierPerNode(BaseEstimator, MultiLabelHierarchicalClas
                     probabilities[:, row] = classifier.predict_proba(subset_x)[:, positive_index][:, 0]
 
                 # get indices of probabilities that are within tolerance of max
-                if _threshold:
-                    indices_probabilities_within_tolerance = np.argwhere(probabilities >= _threshold)
-                else:
-                    highest_probabilities = np.max(probabilities, axis=1).reshape(-1, 1)
-                    indices_probabilities_within_tolerance = np.argwhere(
-                        np.greater_equal(probabilities, highest_probabilities - _tolerance)
-                    )
+                highest_probabilities = np.max(probabilities, axis=1).reshape(-1, 1)
+                indices_probabilities_within_tolerance = np.argwhere(
+                    np.greater_equal(probabilities, highest_probabilities - _tolerance)
+                )
 
                 prediction = [[] for _ in range(subset_x.shape[0])]
                 for row, column in indices_probabilities_within_tolerance:
