@@ -9,7 +9,6 @@ from copy import deepcopy
 import functools
 import networkx as nx
 import numpy as np
-import cupy as cp
 
 from hiclass import BinaryPolicy
 from hiclass.ConstantClassifier import ConstantClassifier
@@ -209,7 +208,8 @@ class MultiLabelLocalClassifierPerNode(BaseEstimator, MultiLabelHierarchicalClas
                     self.logger_.info(f"Predicting for node '{successor_name}'")
                     classifier = self.hierarchy_.nodes[successor]["classifier"]
                     positive_index = np.where(classifier.classes_ == 1)[0]
-                    if isinstance(positive_index, cp.ndarray):
+                    if not isinstance(positive_index, np.ndarray):
+                        import cupy as cp
                         positive_index = cp.asnumpy(positive_index)
                     probabilities[:, row] = classifier.predict_proba(subset_x)[:, positive_index][:, 0]
 
