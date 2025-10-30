@@ -5,7 +5,6 @@ from abc import ABC
 from scipy.sparse import vstack, csr_matrix, csr_array
 import networkx as nx
 import numpy as np
-import cupy as cp
 
 
 class BinaryPolicy(ABC):
@@ -170,7 +169,8 @@ class BinaryPolicy(ABC):
             )
             y = np.zeros(X.shape[0])
             y[: positive_x.shape[0]] = 1
-        elif isinstance(self.X, cp.ndarray):
+        elif self.X.__class__.__module__.startswith("cupy"):
+            import cupy as cp
             X = cp.concatenate([positive_x, negative_x])
             sample_weights = (
                 cp.concatenate([positive_weights, negative_weights])
